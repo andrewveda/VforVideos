@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;800&family=Syne:wght@400;600;700&display=swap">
   <link rel="stylesheet" href="shared.css">
   <style>
-    /* Category filter bar */
+    /* ── Category filter ── */
     .cat-bar {
       display: flex; align-items: center; gap: .8rem;
       margin-bottom: 2rem; position: relative; flex-wrap: wrap;
@@ -21,7 +21,7 @@
       color: var(--text); font-family: var(--font-body); font-size: .85rem;
       cursor: pointer; transition: all .2s;
     }
-    .cat-menu-btn:hover, .cat-menu-btn.active {
+    .cat-menu-btn:hover, .cat-menu-btn.open {
       border-color: var(--gold); color: var(--gold); background: var(--gold-dim);
     }
     .cat-menu-btn .arrow { font-size: .65rem; transition: transform .2s; display: inline-block; }
@@ -51,9 +51,9 @@
     .cat-option:hover { background: rgba(255,255,255,.06); color: var(--text); }
     .cat-option.active { color: var(--gold); background: var(--gold-dim); font-weight: 600; }
 
-    /* Stats bar */
+    /* ── Stats bar ── */
     .stats-bar {
-      display: flex; align-items: center; gap: 1.5rem;
+      display: flex; align-items: center; gap: 1rem;
       margin-bottom: 1.5rem; flex-wrap: wrap;
     }
     .stat-pill {
@@ -66,7 +66,28 @@
     .stat-pill.gold strong { color: var(--gold); }
     .stat-pill.green strong { color: var(--green); }
 
-    /* Video grid */
+    /* Sync indicator — shown while Supabase is loading */
+    .sync-pill {
+      display: inline-flex; align-items: center; gap: .4rem;
+      padding: .3rem .8rem;
+      background: rgba(108,99,255,.12); border: 1px solid rgba(108,99,255,.3);
+      border-radius: 99px; font-size: .75rem; color: var(--accent);
+    }
+    .sync-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--accent); animation: pulse 1s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.2} }
+    .sync-pill.done {
+      background: rgba(35,209,139,.08); border-color: rgba(35,209,139,.3); color: var(--green);
+    }
+    .sync-pill.done .sync-dot { background: var(--green); animation: none; }
+    .sync-pill.error {
+      background: rgba(255,100,100,.08); border-color: rgba(255,100,100,.3); color: #ff8080;
+    }
+    .sync-pill.error .sync-dot { background: #ff8080; animation: none; }
+
+    /* ── Video grid ── */
     .video-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
@@ -79,7 +100,7 @@
       .video-grid { grid-template-columns: 1fr; }
     }
 
-    /* Video card */
+    /* ── Video card ── */
     .vid-card {
       background: var(--card); border: 1px solid var(--border);
       border-radius: var(--r); overflow: hidden;
@@ -94,7 +115,6 @@
       box-shadow: 0 12px 40px rgba(0,0,0,.5), 0 0 0 1px rgba(108,99,255,.2);
     }
     @media (hover: none) {
-      /* No hover lift on touch devices — avoids sticky hover states */
       .vid-card:hover { transform: none; box-shadow: none; border-color: var(--border); }
       .vid-card:active { opacity: .85; }
     }
@@ -164,24 +184,21 @@
     @media (max-width: 600px) { .vid-meta { font-size: .68rem; } }
     .vid-meta .dot { width:3px; height:3px; border-radius:50%; background:var(--muted); flex-shrink:0; }
 
-    /* Empty state */
+    /* ── Empty / skeleton ── */
     .empty-state {
+      grid-column: 1 / -1;
       text-align: center; padding: 4rem 2rem;
       color: var(--muted); font-size: .95rem;
     }
     .empty-state .emoji { font-size: 3rem; display: block; margin-bottom: 1rem; }
 
-    /* Skeleton loader */
     .skeleton-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
       gap: 1.2rem;
     }
     @media (max-width: 600px) { .skeleton-grid { grid-template-columns: 1fr 1fr; gap: .8rem; } }
-    .skeleton-card {
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: var(--r); overflow: hidden;
-    }
+    .skeleton-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; }
     .skeleton-thumb { width:100%; aspect-ratio:16/9; background: linear-gradient(90deg, #12152a 25%, #1c2040 50%, #12152a 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
     .skeleton-body { padding: .9rem 1rem; }
     .skeleton-line { height: 12px; border-radius: 6px; background: linear-gradient(90deg, #12152a 25%, #1c2040 50%, #12152a 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; margin-bottom: .5rem; }
@@ -214,13 +231,17 @@
 <div class="wrap">
   <div class="section-eyebrow">VIDEO ARCHIVE</div>
 
-  <div class="stats-bar" id="statsBar" style="display:none">
-    <div class="stat-pill gold"><span>📼</span> <strong id="statTotal">0</strong> videos</div>
-    <div class="stat-pill green"><span>✅</span> <strong id="statDone">0</strong> completed</div>
-    <div class="stat-pill"><span>🔥</span> <strong id="statPct">0%</strong> done</div>
+  <div class="stats-bar" id="statsBar">
+    <div class="stat-pill gold"><span>📼</span> <strong id="statTotal">—</strong> videos</div>
+    <div class="stat-pill green"><span>✅</span> <strong id="statDone">—</strong> completed</div>
+    <div class="stat-pill"><span>🔥</span> <strong id="statPct">—</strong> done</div>
+    <div class="sync-pill" id="syncPill">
+      <div class="sync-dot"></div>
+      <span id="syncLabel">Syncing progress…</span>
+    </div>
   </div>
 
-  <div class="cat-bar" id="catBar" style="display:none">
+  <div class="cat-bar" id="catBar" style="visibility:hidden">
     <button class="cat-menu-btn" id="catMenuBtn">
       ☰ Filter Category <span class="arrow">▼</span>
     </button>
@@ -228,7 +249,6 @@
     <span class="cat-active-label">Showing: <span id="catActiveLabel">All</span></span>
   </div>
 
-  <!-- Skeleton while loading -->
   <div class="skeleton-grid" id="skeletonGrid">
     <div class="skeleton-card"><div class="skeleton-thumb"></div><div class="skeleton-body"><div class="skeleton-line"></div><div class="skeleton-line short"></div></div></div>
     <div class="skeleton-card"><div class="skeleton-thumb"></div><div class="skeleton-body"><div class="skeleton-line"></div><div class="skeleton-line short"></div></div></div>
@@ -238,20 +258,27 @@
     <div class="skeleton-card"><div class="skeleton-thumb"></div><div class="skeleton-body"><div class="skeleton-line"></div><div class="skeleton-line short"></div></div></div>
   </div>
 
-  <div class="video-grid" id="videoGrid"></div>
+  <div class="video-grid" id="videoGrid" style="display:none"></div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script type="module">
-  import { initStars, initNav, requireAuth, fetchData, getProgress, getCompleted, toUrlId, extractYtId, escHtml } from './shared.js';
+  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+  import {
+    initStars, initNav, requireAuth, fetchData, buildQuestIdSet,
+    fetchCompletedFromSupabase, getProgress, markLocalCompleted,
+    toUrlId, extractYtId, escHtml,
+    SUPABASE_URL, SUPABASE_KEY
+  } from './shared.js';
 
   initStars();
   const auth = requireAuth();
   if (!auth) throw new Error('Not authenticated');
   initNav(auth);
 
-  // Logout
+  const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
   document.getElementById('logoutBtn').addEventListener('click', () => {
     try { localStorage.removeItem('vfv_name'); localStorage.removeItem('vfv_dept'); } catch {}
     window.location.href = 'index.html';
@@ -259,14 +286,15 @@
 
   let quizData = [];
   let activeCategory = 'all';
-  let completedSet = getCompleted();
+  let completedSet = new Set();
   let watchedMap = getProgress();
 
-  // Category dropdown state
+  /* ── Category dropdown ── */
   const catMenuBtn = document.getElementById('catMenuBtn');
   const catDropdown = document.getElementById('catDropdown');
 
-  function closeCat() {
+  function closeCat(e) {
+    if (e && catDropdown.contains(e.target)) return;
     catDropdown.classList.remove('open');
     catMenuBtn.classList.remove('open');
   }
@@ -276,7 +304,6 @@
     catMenuBtn.classList.toggle('open', open);
   });
   document.addEventListener('click', closeCat);
-  catDropdown.addEventListener('click', (e) => e.stopPropagation());
 
   function buildCategories() {
     const cats = ['all', ...new Set(quizData.map(q => q.category))];
@@ -290,7 +317,8 @@
         document.getElementById('catActiveLabel').textContent = cat === 'all' ? 'All' : cat;
         catDropdown.querySelectorAll('.cat-option').forEach(o => o.classList.remove('active'));
         opt.classList.add('active');
-        closeCat();
+        catDropdown.classList.remove('open');
+        catMenuBtn.classList.remove('open');
         renderGrid();
       });
       catDropdown.appendChild(opt);
@@ -304,7 +332,17 @@
     document.getElementById('statTotal').textContent = total;
     document.getElementById('statDone').textContent = done;
     document.getElementById('statPct').textContent = pct + '%';
-    document.getElementById('statsBar').style.display = '';
+  }
+
+  function setSyncState(state) {
+    const pill = document.getElementById('syncPill');
+    const label = document.getElementById('syncLabel');
+    pill.className = 'sync-pill ' + state;
+    if (state === 'done') label.textContent = 'Progress synced';
+    else if (state === 'error') label.textContent = 'Sync failed — using local data';
+    else { pill.className = 'sync-pill'; label.textContent = 'Syncing progress…'; }
+    // Auto-hide the pill after success
+    if (state === 'done') setTimeout(() => { pill.style.display = 'none'; }, 3000);
   }
 
   function renderGrid() {
@@ -331,7 +369,6 @@
       card.className = 'vid-card' + (done ? ' completed' : '');
       card.href = `video.html?id=${encodeURIComponent(urlId)}`;
       card.style.setProperty('--i', i);
-      // Prefetch on hover (desktop) for snappier navigation
       card.addEventListener('mouseenter', () => {
         const link = document.createElement('link');
         link.rel = 'prefetch'; link.href = card.href;
@@ -355,7 +392,7 @@
           </div>
           <div class="completed-badge">✓ WATCHED</div>
           <div class="thumb-progress">
-            <div class="thumb-progress-fill" style="width:${pct}%"></div>
+            <div class="thumb-progress-fill" style="width:${done ? 100 : pct}%"></div>
           </div>
         </div>
         <div class="vid-info">
@@ -371,23 +408,43 @@
     });
   }
 
-  // Init
+  /* ── Init: load data then sync completion from Supabase ── */
   (async () => {
     try {
       quizData = await fetchData();
+
+      /* Show grid immediately with local completion data */
+      completedSet = new Set(
+        JSON.parse(localStorage.getItem('vfv_completed') || '[]')
+      );
       document.getElementById('skeletonGrid').style.display = 'none';
-      document.getElementById('catBar').style.display = '';
+      document.getElementById('videoGrid').style.display = '';
+      document.getElementById('catBar').style.visibility = '';
       buildCategories();
       updateStats();
       renderGrid();
+
+      /* Then fetch real completion from Supabase and refresh */
+      const allQuestIds = buildQuestIdSet(quizData);
+      try {
+        completedSet = await fetchCompletedFromSupabase(supabase, auth.name, allQuestIds);
+        setSyncState('done');
+      } catch {
+        setSyncState('error');
+      }
+      updateStats();
+      renderGrid();
+
     } catch (e) {
       document.getElementById('skeletonGrid').style.display = 'none';
+      document.getElementById('videoGrid').style.display = '';
       document.getElementById('videoGrid').innerHTML =
         '<div class="empty-state"><span class="emoji">⚠️</span>Failed to load videos. Please refresh.</div>';
+      setSyncState('error');
     }
   })();
 
-  // Listen for storage changes from video page (progress updates)
+  /* Re-render if video.html wrote progress to localStorage */
   window.addEventListener('storage', (e) => {
     if (e.key === 'vfv_progress') {
       watchedMap = JSON.parse(e.newValue || '{}');
