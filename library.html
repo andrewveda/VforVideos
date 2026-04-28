@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>V for Video 🌌 — Archive</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;800&family=Syne:wght@400;600;700&display=swap">
+  <link rel="stylesheet" href="shared.css">
+  <style>
+    /* Category filter bar */
+    .cat-bar {
+      display: flex; align-items: center; gap: .8rem;
+      margin-bottom: 2rem; position: relative; flex-wrap: wrap;
+    }
+    .cat-menu-btn {
+      display: inline-flex; align-items: center; gap: .55rem;
+      padding: .55rem 1.1rem;
+      border: 1px solid var(--border); border-radius: 99px;
+      background: rgba(255,255,255,.04);
+      color: var(--text); font-family: var(--font-body); font-size: .85rem;
+      cursor: pointer; transition: all .2s;
+    }
+    .cat-menu-btn:hover, .cat-menu-btn.active {
+      border-color: var(--gold); color: var(--gold); background: var(--gold-dim);
+    }
+    .cat-menu-btn .arrow { font-size: .65rem; transition: transform .2s; display: inline-block; }
+    .cat-menu-btn.open .arrow { transform: rotate(180deg); }
+    .cat-active-label { font-size: .8rem; color: var(--muted); }
+    .cat-active-label span { color: var(--gold); font-weight: 600; }
+
+    .cat-dropdown {
+      display: none; position: absolute; top: calc(100% + 8px); left: 0;
+      min-width: 200px; z-index: 50;
+      background: #1a1c35; border: 1px solid var(--border);
+      border-radius: var(--r); padding: .5rem;
+      box-shadow: 0 16px 40px rgba(0,0,0,.6);
+      animation: dropIn .18s ease forwards;
+      max-height: 60vh; overflow-y: auto;
+    }
+    .cat-dropdown.open { display: block; }
+    @keyframes dropIn {
+      from { opacity:0; transform:translateY(-6px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+    .cat-option {
+      padding: .55rem .9rem; border-radius: 8px;
+      font-family: var(--font-body); font-size: .85rem;
+      color: var(--muted); cursor: pointer; transition: all .15s;
+    }
+    .cat-option:hover { background: rgba(255,255,255,.06); color: var(--text); }
+    .cat-option.active { color: var(--gold); background: var(--gold-dim); font-weight: 600; }
+
+    /* Stats bar */
+    .stats-bar {
+      display: flex; align-items: center; gap: 1.5rem;
+      margin-bottom: 1.5rem; flex-wrap: wrap;
+    }
+    .stat-pill {
+      display: flex; align-items: center; gap: .5rem;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 99px; padding: .45rem 1rem;
+      font-size: .8rem; color: var(--muted);
+    }
+    .stat-pill strong { color: var(--text); font-weight: 700; }
+    .stat-pill.gold strong { color: var(--gold); }
+    .stat-pill.green strong { color: var(--green); }
+
+    /* Video grid */
+    .video-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+      gap: 1.2rem;
+    }
+    @media (max-width: 600px) {
+      .video-grid { grid-template-columns: 1fr 1fr; gap: .8rem; }
+    }
+    @media (max-width: 380px) {
+      .video-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Video card */
+    .vid-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--r); overflow: hidden;
+      transition: transform .22s, box-shadow .22s, border-color .22s;
+      animation: fadeInUp .4s both;
+      animation-delay: calc(var(--i) * 0.04s);
+      text-decoration: none; display: block; color: inherit;
+    }
+    .vid-card:hover {
+      transform: translateY(-5px);
+      border-color: rgba(108,99,255,.5);
+      box-shadow: 0 12px 40px rgba(0,0,0,.5), 0 0 0 1px rgba(108,99,255,.2);
+    }
+    @media (hover: none) {
+      /* No hover lift on touch devices — avoids sticky hover states */
+      .vid-card:hover { transform: none; box-shadow: none; border-color: var(--border); }
+      .vid-card:active { opacity: .85; }
+    }
+    @keyframes fadeInUp {
+      from { opacity:0; transform:translateY(18px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+
+    .thumb-wrap {
+      position: relative; width: 100%; aspect-ratio: 16/9;
+      overflow: hidden; background: #0b0d1c;
+    }
+    .thumb-wrap img {
+      width:100%; height:100%; object-fit:cover; display:block;
+      transition: transform .4s ease;
+    }
+    .vid-card:hover .thumb-wrap img { transform: scale(1.05); }
+    @media (hover: none) { .vid-card:hover .thumb-wrap img { transform: none; } }
+
+    .play-overlay {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(0,0,0,.35); opacity: 0; transition: opacity .22s;
+    }
+    .vid-card:hover .play-overlay { opacity: 1; }
+    @media (hover: none) { .play-overlay { opacity: 1; background: rgba(0,0,0,.18); } }
+
+    .play-icon {
+      width: 48px; height: 48px; background: rgba(245,200,66,.92);
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 24px rgba(245,200,66,.5); transform: scale(.85); transition: transform .2s;
+    }
+    .vid-card:hover .play-icon { transform: scale(1); }
+    @media (hover: none) { .play-icon { transform: scale(.75); } }
+    .play-icon svg { margin-left: 3px; }
+
+    .completed-badge {
+      position: absolute; top: 8px; right: 8px;
+      background: var(--green); color: #04200e;
+      font-size: .65rem; font-weight: 700; letter-spacing: .08em;
+      padding: .22rem .55rem; border-radius: 99px; display: none;
+    }
+    .vid-card.completed .completed-badge { display: block; }
+
+    .thumb-progress {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      height: 4px; background: rgba(255,255,255,.12);
+    }
+    .thumb-progress-fill {
+      height: 100%; background: var(--gold); transition: width .5s ease; width: 0%;
+    }
+    .vid-card.completed .thumb-progress-fill { background: var(--green); }
+
+    .vid-info { padding: .9rem 1rem; }
+    @media (max-width: 600px) { .vid-info { padding: .65rem .75rem; } }
+    .vid-title {
+      font-size: .9rem; font-weight: 600; color: var(--text);
+      line-height: 1.4; margin-bottom: .35rem;
+      display: -webkit-box; -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical; overflow: hidden;
+    }
+    @media (max-width: 600px) { .vid-title { font-size: .78rem; } }
+    .vid-meta {
+      font-size: .75rem; color: var(--muted);
+      display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+    }
+    @media (max-width: 600px) { .vid-meta { font-size: .68rem; } }
+    .vid-meta .dot { width:3px; height:3px; border-radius:50%; background:var(--muted); flex-shrink:0; }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center; padding: 4rem 2rem;
+      color: var(--muted); font-size: .95rem;
+    }
+    .empty-state .emoji { font-size: 3rem; display: block; margin-bottom: 1rem; }
+
+    /* Skeleton loader */
+    .skeleton-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+      gap: 1.2rem;
+    }
+    @media (max-width: 600px) { .skeleton-grid { grid-template-columns: 1fr 1fr; gap: .8rem; } }
+    .skeleton-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--r); overflow: hidden;
+    }
+    .skeleton-thumb { width:100%; aspect-ratio:16/9; background: linear-gradient(90deg, #12152a 25%, #1c2040 50%, #12152a 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
+    .skeleton-body { padding: .9rem 1rem; }
+    .skeleton-line { height: 12px; border-radius: 6px; background: linear-gradient(90deg, #12152a 25%, #1c2040 50%, #12152a 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; margin-bottom: .5rem; }
+    .skeleton-line.short { width: 60%; }
+    @keyframes shimmer { to { background-position: -200% 0; } }
+  </style>
+</head>
+<body>
+<div id="stars"></div>
+
+<nav>
+  <a href="library.html" class="logo">✦ V FOR VIDEO</a>
+  <div style="position:relative;" id="menuWrap">
+    <button class="menu-btn" id="menuBtn" aria-label="Menu" aria-expanded="false">
+      <svg width="18" height="14" viewBox="0 0 18 14" fill="none">
+        <rect width="18" height="2" rx="1" fill="rgba(245,200,66,0.85)"/>
+        <rect y="6" width="12" height="2" rx="1" fill="rgba(245,200,66,0.85)"/>
+        <rect y="12" width="16" height="2" rx="1" fill="rgba(245,200,66,0.85)"/>
+      </svg>
+    </button>
+    <div class="menu-dropdown" id="menuDropdown">
+      <div class="menu-dropdown-header">Logged in as</div>
+      <div class="menu-user-name" id="menuName">—</div>
+      <div class="menu-user-dept" id="menuDept">—</div>
+      <button class="menu-logout" id="logoutBtn">⏻ Log out</button>
+    </div>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div class="section-eyebrow">VIDEO ARCHIVE</div>
+
+  <div class="stats-bar" id="statsBar" style="display:none">
+    <div class="stat-pill gold"><span>📼</span> <strong id="statTotal">0</strong> videos</div>
+    <div class="stat-pill green"><span>✅</span> <strong id="statDone">0</strong> completed</div>
+    <div class="stat-pill"><span>🔥</span> <strong id="statPct">0%</strong> done</div>
+  </div>
+
+  <div class="cat-bar" id="catBar" style="display:none">
+    <button class="cat-menu-btn" id="catMenuBtn">
+      ☰ Filter Category <span class="arrow">▼</span>
+    </button>
+    <div class="cat-dropdown" id="catDropdown"></div>
+    <span class="cat-active-label">Showing: <span id="catActiveLabel">All</span></span>
+  </div>
+
+  <!-- Skeleton while loading -->
+  <div class="skeleton-grid" id="skeletonGrid">
+    <div class="skeleton-card"><div class="skeleton-thumb"></div><div class="skeleton-body"><div class="skeleton-line"></div><div class="skeleton-line short"></div></div></div>
+    <div class="skeleton-card"><div class="skeleton-thumb"></div><div class="skeleton-body"><div class="skeleton-line"></div><div class="skeleton-line short"></div></div></div>
+    <div class="skeleton-card"><div class="skeleton-thumb"></div><div class="skeleton-body"><div class="skeleton-line"></div><div class="skeleton-line short"></div></div></div>
+    <div class="skeleton-card"><div class="skeleton-thumb"></div><div class="skeleton-body"><div class="skeleton-line"></div><div class="skeleton-line short"></div></div></div>
+    <div class="skeleton-card"><div class="skeleton-thumb"></div><div class="skeleton-body"><div class="skeleton-line"></div><div class="skeleton-line short"></div></div></div>
+    <div class="skeleton-card"><div class="skeleton-thumb"></div><div class="skeleton-body"><div class="skeleton-line"></div><div class="skeleton-line short"></div></div></div>
+  </div>
+
+  <div class="video-grid" id="videoGrid"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+  import { initStars, initNav, requireAuth, fetchData, getProgress, getCompleted, toUrlId, extractYtId, escHtml } from './shared.js';
+
+  initStars();
+  const auth = requireAuth();
+  if (!auth) throw new Error('Not authenticated');
+  initNav(auth);
+
+  // Logout
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    try { localStorage.removeItem('vfv_name'); localStorage.removeItem('vfv_dept'); } catch {}
+    window.location.href = 'index.html';
+  });
+
+  let quizData = [];
+  let activeCategory = 'all';
+  let completedSet = getCompleted();
+  let watchedMap = getProgress();
+
+  // Category dropdown state
+  const catMenuBtn = document.getElementById('catMenuBtn');
+  const catDropdown = document.getElementById('catDropdown');
+
+  function closeCat() {
+    catDropdown.classList.remove('open');
+    catMenuBtn.classList.remove('open');
+  }
+  catMenuBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = catDropdown.classList.toggle('open');
+    catMenuBtn.classList.toggle('open', open);
+  });
+  document.addEventListener('click', closeCat);
+  catDropdown.addEventListener('click', (e) => e.stopPropagation());
+
+  function buildCategories() {
+    const cats = ['all', ...new Set(quizData.map(q => q.category))];
+    catDropdown.innerHTML = '';
+    cats.forEach(cat => {
+      const opt = document.createElement('div');
+      opt.className = 'cat-option' + (cat === activeCategory ? ' active' : '');
+      opt.textContent = cat === 'all' ? '⭐ All' : cat;
+      opt.addEventListener('click', () => {
+        activeCategory = cat;
+        document.getElementById('catActiveLabel').textContent = cat === 'all' ? 'All' : cat;
+        catDropdown.querySelectorAll('.cat-option').forEach(o => o.classList.remove('active'));
+        opt.classList.add('active');
+        closeCat();
+        renderGrid();
+      });
+      catDropdown.appendChild(opt);
+    });
+  }
+
+  function updateStats() {
+    const total = quizData.length;
+    const done = completedSet.size;
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    document.getElementById('statTotal').textContent = total;
+    document.getElementById('statDone').textContent = done;
+    document.getElementById('statPct').textContent = pct + '%';
+    document.getElementById('statsBar').style.display = '';
+  }
+
+  function renderGrid() {
+    const grid = document.getElementById('videoGrid');
+    const filtered = activeCategory === 'all'
+      ? quizData
+      : quizData.filter(q => q.category === activeCategory);
+
+    grid.innerHTML = '';
+
+    if (filtered.length === 0) {
+      grid.innerHTML = '<div class="empty-state"><span class="emoji">🎬</span>No videos in this category yet.</div>';
+      return;
+    }
+
+    filtered.forEach((vid, i) => {
+      const ytId = extractYtId(vid.video);
+      const watched = watchedMap[vid.questId] || 0;
+      const pct = vid.watchTarget > 0 ? Math.min((watched / vid.watchTarget) * 100, 100) : 0;
+      const done = completedSet.has(String(vid.questId));
+      const urlId = toUrlId(vid.questId);
+
+      const card = document.createElement('a');
+      card.className = 'vid-card' + (done ? ' completed' : '');
+      card.href = `video.html?id=${encodeURIComponent(urlId)}`;
+      card.style.setProperty('--i', i);
+      // Prefetch on hover (desktop) for snappier navigation
+      card.addEventListener('mouseenter', () => {
+        const link = document.createElement('link');
+        link.rel = 'prefetch'; link.href = card.href;
+        document.head.appendChild(link);
+      }, { once: true });
+
+      card.innerHTML = `
+        <div class="thumb-wrap">
+          <img
+            src="https://img.youtube.com/vi/${escHtml(ytId)}/hqdefault.jpg"
+            alt="${escHtml(vid.title)}"
+            loading="lazy"
+            onerror="this.src='https://img.youtube.com/vi/${escHtml(ytId)}/mqdefault.jpg'"
+          >
+          <div class="play-overlay">
+            <div class="play-icon">
+              <svg width="18" height="20" viewBox="0 0 18 20" fill="none">
+                <path d="M1 1L17 10L1 19V1Z" fill="#07080f"/>
+              </svg>
+            </div>
+          </div>
+          <div class="completed-badge">✓ WATCHED</div>
+          <div class="thumb-progress">
+            <div class="thumb-progress-fill" style="width:${pct}%"></div>
+          </div>
+        </div>
+        <div class="vid-info">
+          <div class="vid-title">${escHtml(vid.title)}</div>
+          <div class="vid-meta">
+            <span>${escHtml(vid.category)}</span>
+            <span class="dot"></span>
+            <span>⏱ ${vid.watchTarget}s required</span>
+          </div>
+        </div>`;
+
+      grid.appendChild(card);
+    });
+  }
+
+  // Init
+  (async () => {
+    try {
+      quizData = await fetchData();
+      document.getElementById('skeletonGrid').style.display = 'none';
+      document.getElementById('catBar').style.display = '';
+      buildCategories();
+      updateStats();
+      renderGrid();
+    } catch (e) {
+      document.getElementById('skeletonGrid').style.display = 'none';
+      document.getElementById('videoGrid').innerHTML =
+        '<div class="empty-state"><span class="emoji">⚠️</span>Failed to load videos. Please refresh.</div>';
+    }
+  })();
+
+  // Listen for storage changes from video page (progress updates)
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'vfv_progress') {
+      watchedMap = JSON.parse(e.newValue || '{}');
+      renderGrid();
+    }
+    if (e.key === 'vfv_completed') {
+      completedSet = new Set(JSON.parse(e.newValue || '[]'));
+      updateStats();
+      renderGrid();
+    }
+  });
+</script>
+</body>
+</html>

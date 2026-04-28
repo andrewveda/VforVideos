@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>V for Video 🌌 — Player</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;800&family=Syne:wght@400;600;700&display=swap">
+  <link rel="stylesheet" href="shared.css">
+  <!-- YouTube IFrame API -->
+  <script src="https://www.youtube.com/iframe_api"></script>
+  <style>
+    /* Player layout */
+    .player-header {
+      display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .player-header h1 {
+      font-size: .82rem; color: var(--muted); font-weight: 400;
+      flex: 1; min-width: 0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .player-layout {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 1.5rem;
+      align-items: start;
+    }
+    @media (max-width: 900px) {
+      .player-layout { grid-template-columns: 1fr; }
+    }
+
+    /* ── Embed wrap — key mobile fix ── */
+    .embed-wrap {
+      border-radius: var(--r); overflow: hidden;
+      border: 1px solid var(--border);
+      background: #000;
+      /* Aspect-ratio intrinsic sizing — lets the iframe fill naturally */
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+    }
+    /* The YT iframe must fill its wrapper */
+    .embed-wrap iframe,
+    .embed-wrap #ytPlayer {
+      position: absolute;
+      inset: 0;
+      width: 100% !important;
+      height: 100% !important;
+      border: none;
+    }
+
+    /* Side panel */
+    .side-panel {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 1.3rem;
+      position: sticky; top: 76px;
+    }
+    @media (max-width: 900px) {
+      .side-panel { position: static; }
+    }
+    .side-cat {
+      font-size: .72rem; color: var(--accent);
+      letter-spacing: .1em; text-transform: uppercase; margin-bottom: .4rem;
+    }
+    .side-title {
+      font-size: 1rem; font-weight: 700; color: var(--text);
+      margin-bottom: 1.2rem; line-height: 1.4;
+    }
+
+    /* Watch progress */
+    .watch-section { margin-top: 1rem; }
+    .watch-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: .5rem;
+    }
+    .watch-label { font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+    .watch-val { font-family: var(--font-head); font-size: .78rem; color: var(--gold); }
+    .progress-track {
+      width: 100%; height: 8px; background: rgba(255,255,255,.08);
+      border-radius: 99px; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%; border-radius: 99px;
+      background: linear-gradient(90deg, var(--accent), var(--gold));
+      box-shadow: 0 0 8px rgba(108,99,255,.5);
+      transition: width .9s ease; width: 0%;
+    }
+    .progress-fill.done {
+      background: linear-gradient(90deg, #23d18b, #a3ffda);
+      box-shadow: 0 0 10px rgba(35,209,139,.5);
+    }
+    .watch-status {
+      margin-top: .75rem; font-size: .82rem; color: var(--muted);
+      text-align: center; min-height: 1.4em; transition: color .3s;
+    }
+    .watch-status.ready { color: var(--green); font-weight: 600; }
+
+    .btn-save {
+      width: 100%; margin-top: 1rem; padding: .8rem;
+      background: linear-gradient(135deg, #23d18b, #16a34a);
+      color: #04200e; font-family: var(--font-body); font-size: .92rem; font-weight: 700;
+      border: none; border-radius: var(--r); cursor: pointer;
+      box-shadow: 0 4px 18px rgba(35,209,139,.3);
+      transition: all .2s; letter-spacing: .03em;
+      /* Minimum touch target */
+      min-height: 48px;
+    }
+    .btn-save:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(35,209,139,.4); }
+    .btn-save:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+
+    .divider { border: none; border-top: 1px solid var(--border); margin: 1.2rem 0; }
+
+    /* Up next */
+    .up-next-label {
+      font-size: .72rem; letter-spacing: .12em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: .8rem;
+    }
+    .next-list { display: flex; flex-direction: column; gap: .6rem; }
+    .next-item {
+      display: flex; gap: .7rem; align-items: center;
+      text-decoration: none; color: inherit;
+      padding: .5rem; border-radius: 8px; transition: background .2s;
+    }
+    .next-item:hover { background: rgba(255,255,255,.05); }
+    @media (hover: none) { .next-item:active { background: rgba(255,255,255,.05); } }
+    .next-thumb {
+      width: 80px; min-width: 80px; aspect-ratio: 16/9;
+      border-radius: 6px; overflow: hidden; background: #0b0d1c;
+      flex-shrink: 0;
+    }
+    .next-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .next-info { flex: 1; min-width: 0; }
+    .next-title {
+      font-size: .78rem; color: var(--text); line-height: 1.35;
+      display: -webkit-box; -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical; overflow: hidden; margin-bottom: .2rem;
+    }
+    .next-cat { font-size: .7rem; color: var(--muted); }
+    .next-item.done-item .next-title { color: var(--green); }
+
+    /* Error/loading states */
+    .player-error {
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 1rem;
+      aspect-ratio: 16/9; background: var(--card);
+      border: 1px solid var(--border); border-radius: var(--r);
+      color: var(--muted); text-align: center; padding: 2rem;
+    }
+    .player-error .emoji { font-size: 2.5rem; }
+
+    /* Mobile: stack side panel compactly */
+    @media (max-width: 900px) {
+      .side-panel { padding: 1rem; }
+      .side-title { font-size: .92rem; margin-bottom: .9rem; }
+    }
+  </style>
+</head>
+<body>
+<div id="stars"></div>
+
+<nav>
+  <a href="library.html" class="logo">✦ V FOR VIDEO</a>
+  <div style="position:relative;" id="menuWrap">
+    <button class="menu-btn" id="menuBtn" aria-label="Menu" aria-expanded="false">
+      <svg width="18" height="14" viewBox="0 0 18 14" fill="none">
+        <rect width="18" height="2" rx="1" fill="rgba(245,200,66,0.85)"/>
+        <rect y="6" width="12" height="2" rx="1" fill="rgba(245,200,66,0.85)"/>
+        <rect y="12" width="16" height="2" rx="1" fill="rgba(245,200,66,0.85)"/>
+      </svg>
+    </button>
+    <div class="menu-dropdown" id="menuDropdown">
+      <div class="menu-dropdown-header">Logged in as</div>
+      <div class="menu-user-name" id="menuName">—</div>
+      <div class="menu-user-dept" id="menuDept">—</div>
+      <button class="menu-logout" id="logoutBtn">⏻ Log out</button>
+    </div>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div class="player-header">
+    <a href="library.html" class="back-btn">← Back to Archive</a>
+    <h1 id="pageTitle">Loading…</h1>
+  </div>
+
+  <div class="player-layout" id="playerLayout" style="display:none">
+    <div>
+      <div class="embed-wrap" id="embedWrap">
+        <div id="ytPlayer"></div>
+      </div>
+    </div>
+
+    <div class="side-panel">
+      <div class="side-cat" id="sideCategory"></div>
+      <div class="side-title" id="sideTitle">Loading…</div>
+
+      <div class="watch-section">
+        <div class="watch-header">
+          <span class="watch-label">🎬 Watch Progress</span>
+          <span class="watch-val" id="watchVal">0s / 0s</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div class="watch-status" id="watchStatus">▶ Press play to begin</div>
+        <button class="btn-save" id="saveBtn" disabled>💾 Save Score</button>
+      </div>
+
+      <hr class="divider">
+      <div class="up-next-label">Up Next</div>
+      <div class="next-list" id="nextList"></div>
+    </div>
+  </div>
+
+  <div id="errorState" style="display:none">
+    <div class="player-error">
+      <span class="emoji">⚠️</span>
+      <strong>Video not found</strong>
+      <span>This video ID doesn't match any videos in the archive.</span>
+      <a href="library.html" class="back-btn" style="margin-top:.5rem">← Go to Archive</a>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+  import {
+    initStars, initNav, requireAuth,
+    fetchData, getProgress, setProgress, getCompleted, markCompleted,
+    toUrlId, extractYtId, escHtml,
+    SUPABASE_URL, SUPABASE_KEY
+  } from './shared.js';
+
+  /* ── Setup ── */
+  initStars();
+  const auth = requireAuth();
+  if (!auth) throw new Error('Not authenticated');
+  initNav(auth);
+
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    try { localStorage.removeItem('vfv_name'); localStorage.removeItem('vfv_dept'); } catch {}
+    window.location.href = 'index.html';
+  });
+
+  const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  /* ── Toast ── */
+  function showToast(msg, type = '') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (type ? ' ' + type : '');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => { t.className = 'toast'; }, 3500);
+  }
+
+  /* ── Resolve video from URL param ── */
+  const params = new URLSearchParams(location.search);
+  const urlId = params.get('id');
+
+  if (!urlId) {
+    showError();
+  } else {
+    init();
+  }
+
+  function showError() {
+    document.getElementById('errorState').style.display = '';
+    document.getElementById('pageTitle').textContent = 'Video not found';
+  }
+
+  /* ── State ── */
+  let quizData = [];
+  let currentVideo = null;
+  let watchTime = 0;
+  let watchInterval = null;
+  let ytPlayer = null;
+  let ytReady = false;
+  let completedSet = getCompleted();
+  let watchedMap = getProgress();
+
+  /* ── YouTube API ── */
+  // onYouTubeIframeAPIReady may fire before or after our module runs
+  window.__ytReadyCbs = window.__ytReadyCbs || [];
+  const ytReadyPromise = new Promise(resolve => {
+    if (window.YT && window.YT.Player) { resolve(); return; }
+    window.__ytReadyCbs.push(resolve);
+  });
+  window.onYouTubeIframeAPIReady = () => {
+    ytReady = true;
+    (window.__ytReadyCbs || []).forEach(fn => fn());
+    window.__ytReadyCbs = [];
+  };
+
+  async function init() {
+    quizData = await fetchData();
+
+    // Find video by matching toUrlId(questId) === urlId
+    currentVideo = quizData.find(v => toUrlId(v.questId) === urlId);
+
+    if (!currentVideo) {
+      showError();
+      return;
+    }
+
+    // Update page metadata
+    document.title = `${currentVideo.title} — V for Video 🌌`;
+    document.getElementById('pageTitle').textContent = currentVideo.title;
+    document.getElementById('sideTitle').textContent = currentVideo.title;
+    document.getElementById('sideCategory').textContent = currentVideo.category;
+
+    // Restore progress
+    watchTime = watchedMap[currentVideo.questId] || 0;
+    const alreadyDone = completedSet.has(String(currentVideo.questId));
+
+    updateProgressUI(alreadyDone);
+    buildNextList();
+
+    document.getElementById('playerLayout').style.display = '';
+
+    // Save button
+    document.getElementById('saveBtn').addEventListener('click', manualSave);
+
+    // Init YouTube player
+    await ytReadyPromise;
+    createPlayer();
+  }
+
+  function updateProgressUI(alreadyDone) {
+    const pct = currentVideo.watchTarget > 0
+      ? Math.min((watchTime / currentVideo.watchTarget) * 100, 100) : 0;
+
+    document.getElementById('watchVal').textContent =
+      `${Math.floor(watchTime)}s / ${currentVideo.watchTarget}s`;
+
+    const fill = document.getElementById('progressFill');
+    fill.style.width = pct + '%';
+    fill.classList.toggle('done', pct >= 100 || alreadyDone);
+
+    const statusEl = document.getElementById('watchStatus');
+    const saveBtn = document.getElementById('saveBtn');
+
+    if (alreadyDone) {
+      statusEl.textContent = '✅ Already saved!';
+      statusEl.className = 'watch-status ready';
+      saveBtn.disabled = true;
+      saveBtn.textContent = '✅ Score Saved';
+      saveBtn.style.opacity = '.6';
+    } else if (pct >= 100) {
+      statusEl.textContent = '✅ Target reached! Save when ready.';
+      statusEl.className = 'watch-status ready';
+      saveBtn.disabled = false;
+      saveBtn.textContent = '💾 Save Score';
+      saveBtn.style.opacity = '1';
+    } else {
+      statusEl.textContent = '▶ Press play to begin';
+      statusEl.className = 'watch-status';
+      saveBtn.disabled = true;
+      saveBtn.textContent = '💾 Save Score';
+      saveBtn.style.opacity = '1';
+    }
+  }
+
+  function createPlayer() {
+    const ytId = extractYtId(currentVideo.video);
+    ytPlayer = new YT.Player('ytPlayer', {
+      videoId: ytId,
+      playerVars: {
+        autoplay: 0,
+        controls: 1,
+        rel: 0,
+        playsinline: 1,      // ← Critical for iOS: plays inline instead of fullscreen
+        modestbranding: 1,
+        iv_load_policy: 3,
+      },
+      events: {
+        onStateChange: onPlayerState,
+        onError: onPlayerError,
+      }
+    });
+  }
+
+  function onPlayerState(event) {
+    const YTS = YT.PlayerState;
+    if (event.data === YTS.PLAYING) {
+      if (!watchInterval) {
+        watchInterval = setInterval(tick, 1000);
+      }
+    } else {
+      clearInterval(watchInterval);
+      watchInterval = null;
+      const alreadyDone = completedSet.has(String(currentVideo.questId));
+      if (!alreadyDone && watchTime < currentVideo.watchTarget) {
+        const statusEl = document.getElementById('watchStatus');
+        statusEl.textContent = event.data === YTS.ENDED
+          ? '⏹ Video ended — keep going!'
+          : '⏸ Paused — keep watching!';
+        statusEl.className = 'watch-status';
+      }
+    }
+  }
+
+  function tick() {
+    watchTime++;
+    // Persist every 5 seconds to avoid thrashing localStorage
+    watchedMap[currentVideo.questId] = watchTime;
+    if (watchTime % 5 === 0) setProgress(watchedMap);
+
+    const alreadyDone = completedSet.has(String(currentVideo.questId));
+    if (!alreadyDone) updateProgressUI(false);
+
+    // Unlock save when target reached
+    if (!alreadyDone && watchTime >= currentVideo.watchTarget) {
+      setProgress(watchedMap); // flush immediately at threshold
+      updateProgressUI(false);
+    }
+  }
+
+  function onPlayerError(event) {
+    showToast('⚠️ Video failed to load. Check your connection.', 'error');
+  }
+
+  async function manualSave() {
+    const alreadyDone = completedSet.has(String(currentVideo.questId));
+    if (alreadyDone) return;
+
+    const saveBtn = document.getElementById('saveBtn');
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span class="spinner"></span> Saving…';
+
+    try {
+      const { error } = await supabase.from('Quests').insert([{
+        student_name: auth.name,
+        department: auth.dept,
+        correct: 10,
+        wrong: 0,
+        time_spent: Math.floor(watchTime),
+        quest_id: currentVideo.questId
+      }]);
+
+      if (error) throw error;
+
+      markCompleted(String(currentVideo.questId));
+      completedSet.add(String(currentVideo.questId));
+      setProgress(watchedMap);
+
+      saveBtn.textContent = '✅ Score Saved';
+      saveBtn.style.opacity = '.6';
+      document.getElementById('watchStatus').textContent = '✅ Score saved!';
+      document.getElementById('watchStatus').className = 'watch-status ready';
+      document.getElementById('progressFill').classList.add('done');
+
+      showToast('Score saved! 🎉', 'success');
+
+    } catch (err) {
+      console.error('Save error:', err);
+      saveBtn.disabled = false;
+      saveBtn.textContent = '❌ Failed — Try Again';
+      showToast('Failed to save. Please try again.', 'error');
+    }
+  }
+
+  function buildNextList() {
+    const list = document.getElementById('nextList');
+    // Show up to 6 other videos — prefer unwatched first
+    const others = quizData
+      .filter(v => v.questId !== currentVideo.questId)
+      .sort((a, b) => {
+        // Completed items go to the bottom
+        const aDone = completedSet.has(String(a.questId)) ? 1 : 0;
+        const bDone = completedSet.has(String(b.questId)) ? 1 : 0;
+        return aDone - bDone;
+      })
+      .slice(0, 6);
+
+    list.innerHTML = '';
+    others.forEach(vid => {
+      const ytId = extractYtId(vid.video);
+      const done = completedSet.has(String(vid.questId));
+      const item = document.createElement('a');
+      item.className = 'next-item' + (done ? ' done-item' : '');
+      item.href = `video.html?id=${encodeURIComponent(toUrlId(vid.questId))}`;
+      item.innerHTML = `
+        <div class="next-thumb">
+          <img src="https://img.youtube.com/vi/${escHtml(ytId)}/mqdefault.jpg" alt="" loading="lazy">
+        </div>
+        <div class="next-info">
+          <div class="next-title">${done ? '✓ ' : ''}${escHtml(vid.title)}</div>
+          <div class="next-cat">${escHtml(vid.category)} · ${vid.watchTarget}s</div>
+        </div>`;
+      list.appendChild(item);
+    });
+  }
+
+  /* Cleanup interval on page unload */
+  window.addEventListener('pagehide', () => {
+    clearInterval(watchInterval);
+    if (currentVideo) setProgress(watchedMap); // final flush
+  });
+  window.addEventListener('beforeunload', () => {
+    clearInterval(watchInterval);
+    if (currentVideo) setProgress(watchedMap);
+  });
+</script>
+</body>
+</html>
